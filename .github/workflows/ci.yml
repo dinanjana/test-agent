@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: TypeScript check (API)
+        run: cd apps/api && npx tsc --noEmit
+
+      - name: TypeScript check (Web)
+        run: cd apps/web && npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test (API)
+        run: npm -w apps/api run test

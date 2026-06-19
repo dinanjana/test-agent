@@ -1,0 +1,22 @@
+{
+  "name": "test-agent-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TestAgent — framework-agnostic testing for AI agents: define pass/fail in plain English, run multi-turn tests, turn failures into actionable tickets.",
+  "license": "MIT",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+  },
+  "devDependencies": {
+    "turbo": "latest",
+    "prettier": "latest"
+  },
+  "packageManager": "npm@10.0.0"
+}
