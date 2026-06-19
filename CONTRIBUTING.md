@@ -51,6 +51,16 @@ Please make sure:
 - New backend logic has a Vitest test where practical (see
   `apps/api/src/services/__tests__/` for the pattern).
 
+If your change touches Docker, the compose stack, or build config, validate the full stack
+end-to-end with the smoke test:
+
+```bash
+./scripts/smoke.sh
+```
+
+It builds and starts everything, checks health + persistence, and verifies images carry no
+internal material. Exit code 0 means all checks passed.
+
 ## Workflow
 
 1. Fork and branch from `main` (e.g. `feat/...`, `fix/...`, `docs/...`).

@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   mongo:
     image: mongo:8
@@ -28,6 +26,55 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: testagent-api
+    ports:
+      - "3001:3001"
+    environment:
+      MONGO_URI: mongodb://mongo:27017/testagent
+      REDIS_URL: redis://redis:6379
+      PORT: "3001"
+      # Optional fallback key; LLM keys are normally set per-app in Settings (BYOK).
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Baked into the client bundle; must be reachable from the browser.
+        NEXT_PUBLIC_API_URL: http://localhost:3001
+    container_name: testagent-web
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+  mock-agent:
+    build:
+      context: .
+      dockerfile: apps/mock-agent/Dockerfile
+    container_name: testagent-mock-agent
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: "4000"
+      # Required for the sample agent to generate responses.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
 
 volumes:
   mongo-data:

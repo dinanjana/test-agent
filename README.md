@@ -51,28 +51,38 @@ failure comes back categorized by root cause and ready to ship to Jira/Linear.
 
 ## Quick start
 
-**Prerequisites:** Node.js 18+, Docker (for MongoDB + Redis), and an OpenAI API key for the
-bundled mock agent.
+### Run with Docker (one command)
+
+The whole stack — web, api, mock-agent, MongoDB, and Redis — builds and runs together.
+**Prerequisites:** Docker + Docker Compose.
 
 ```bash
-git clone https://github.com/<your-org>/testagent.git
-cd testagent
-npm install
-
-# Start MongoDB (:27017) and Redis (:6379)
-docker compose up -d
-
-# Configure environment
-cp apps/api/.env.example        apps/api/.env
-cp apps/web/.env.example        apps/web/.env
-cp apps/mock-agent/.env.example apps/mock-agent/.env   # add your OPENAI_API_KEY here
-
-# Run api (:3001), web (:3000), and the mock agent (:4000)
-npm run dev
+git clone https://github.com/dinanjana/test-agent.git
+cd test-agent
+cp .env.example .env        # add your OPENAI_API_KEY (used by the mock agent)
+docker compose up           # builds + starts everything
 ```
 
 Then open <http://localhost:3000> and point TestAgent at the mock agent
-(`http://localhost:4000`) to try the full flow. Health check: `curl http://localhost:3001/health`.
+(`http://localhost:4000/chat`) to try the full flow. Health check: `curl http://localhost:3001/health`.
+Stop with `docker compose down` (add `-v` to also wipe the database).
+
+> The web UI's API URL (`NEXT_PUBLIC_API_URL`) is baked at build time and defaults to
+> `http://localhost:3001`. If you serve the UI from another host, rebuild the web image:
+> `docker compose build --build-arg NEXT_PUBLIC_API_URL=https://your-host:3001 web`.
+
+### Develop locally (hot reload)
+
+**Prerequisites:** Node.js 18+, Docker, and an OpenAI API key for the mock agent.
+
+```bash
+npm install
+docker compose up -d mongo redis        # just the databases
+cp apps/api/.env.example        apps/api/.env
+cp apps/web/.env.example        apps/web/.env
+cp apps/mock-agent/.env.example apps/mock-agent/.env   # add your OPENAI_API_KEY
+npm run dev                              # api :3001, web :3000, mock-agent :4000
+```
 
 > **Bring your own keys.** TestAgent stores LLM provider keys per app in settings, not in
 > environment variables. You provide your own OpenAI / Anthropic / Google keys.

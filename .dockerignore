@@ -1,0 +1,30 @@
+# Dependencies & build outputs (reinstalled/rebuilt inside the image)
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/*.tsbuildinfo
+
+# Version control & local history
+.git
+.git-backup-pre-opensource
+
+# Internal / local-only material (must never enter an image)
+internal-docs
+.claude
+.mcp.json
+
+# Docs assets not needed at runtime
+docs/screenshots
+
+# Local env files (templates are copied explicitly where needed)
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Logs, coverage, OS cruft
+**/*.log
+coverage
+.nyc_output
+.DS_Store
+Thumbs.db
