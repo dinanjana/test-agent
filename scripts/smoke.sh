@@ -70,6 +70,49 @@ else
   bad "could not resolve api image"
 fi
 
+# Image-size budget assertions (1000-based MB: 1MB = 1,000,000 bytes).
+# NOTE: `docker image inspect .Size` reports the image's UNIQUE CONTENT size, which under the
+# containerd image store is smaller than the `docker images` SIZE column (e.g. ~58MB content
+# vs ~273MB on-disk for the api). Budgets are calibrated to THIS metric with headroom over the
+# slimmed images (~58/52/54MB) so a regression to full-monorepo node_modules (~250MB+ content)
+# trips the gate.
+API_BUDGET=$((150 * 1000 * 1000))    # 150 MB  (slimmed ~58MB)
+MOCK_BUDGET=$((120 * 1000 * 1000))   # 120 MB  (slimmed ~52MB)
+WEB_BUDGET=$((120 * 1000 * 1000))    # 120 MB  (slimmed ~54MB)
+
+get_image_from_service() {
+  local svc="$1"
+  local cid
+  cid=$(docker compose ps -q "$svc" 2>/dev/null | head -1)
+  [ -n "$cid" ] && docker inspect --format '{{.Image}}' "$cid" 2>/dev/null || true
+}
+
+check_image_size() {
+  local svc="$1" budget="$2" label="$3"
+  local img size_bytes size_mb
+  img=$(get_image_from_service "$svc")
+  if [ -z "$img" ]; then
+    bad "$label: could not resolve image for service '$svc'"
+    return
+  fi
+  size_bytes=$(docker image inspect --format '{{.Size}}' "$img" 2>/dev/null || true)
+  if [ -z "$size_bytes" ]; then
+    bad "$label: could not inspect image size"
+    return
+  fi
+  # Compute MB (integer division, 1000-based)
+  size_mb=$(( size_bytes / 1000000 ))
+  if [ "$size_bytes" -lt "$budget" ]; then
+    ok "$label image size: ${size_mb}MB (budget: $(( budget / 1000000 ))MB)"
+  else
+    bad "$label image size: ${size_mb}MB exceeds budget of $(( budget / 1000000 ))MB"
+  fi
+}
+
+check_image_size "api"        "$API_BUDGET"  "api"
+check_image_size "mock-agent" "$MOCK_BUDGET" "mock-agent"
+check_image_size "web"        "$WEB_BUDGET"  "web"
+
 echo
 if [ "$FAILS" -eq 0 ]; then
   echo "SMOKE: ALL PASS ✅"

@@ -3,29 +3,31 @@
 
 FROM node:20-alpine AS base
 WORKDIR /app
-COPY package.json package-lock.json ./
-COPY apps/api/package.json ./apps/api/
-COPY apps/web/package.json ./apps/web/
-COPY apps/mock-agent/package.json ./apps/mock-agent/
-COPY packages ./packages
 
-# ---- Build ----
-FROM base AS build
-RUN npm ci
-COPY apps/mock-agent ./apps/mock-agent
-RUN npm -w apps/mock-agent run build
+# Prune the monorepo down to this workspace (+ its internal deps).
+FROM base AS pruner
+COPY . .
+RUN npx --yes turbo@^2 prune mock-agent --docker
 
-# ---- Production deps only ----
+# Production deps only — installs JUST this workspace's deps from the pruned lockfile.
 FROM base AS prod-deps
+COPY --from=pruner /app/out/json/ ./
 RUN npm ci --omit=dev
 
-# ---- Runtime ----
+# Build — full deps + compile TypeScript to dist.
+FROM base AS build
+COPY --from=pruner /app/out/json/ ./
+RUN npm ci
+COPY --from=pruner /app/out/full/ ./
+# tsconfig extends this; it isn't a workspace package so it's not in the prune output.
+COPY --from=pruner /app/packages/ts-config ./packages/ts-config
+RUN npm run build -w mock-agent
+
+# Runtime — small now because prod-deps holds only this app's deps.
+# Copy the whole prod-deps /app so non-hoisted deps (e.g. p-limit in apps/api/node_modules) resolve.
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-# Copy the whole prod-deps tree (root + any non-hoisted workspace node_modules,
-# manifests, packages) so module resolution works regardless of npm hoisting,
-# then overlay the compiled output.
 COPY --from=prod-deps /app ./
 COPY --from=build /app/apps/mock-agent/dist ./apps/mock-agent/dist
 EXPOSE 4000
